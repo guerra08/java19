@@ -1,5 +1,5 @@
 # java19
-A study project for upcoming features in Java 19 (some in preview)
+A study project for upcoming features in Java 19.
 
 ## Features
 - Improvements on pattern matching and switch
