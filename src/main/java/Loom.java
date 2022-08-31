@@ -2,7 +2,6 @@ import jdk.incubator.concurrent.StructuredTaskScope;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 public class Loom {
 
@@ -27,24 +26,24 @@ public class Loom {
     }
 
     public static Integer structuredTaskScope() {
-        try(var scope = new StructuredTaskScope()) {
-            var start = System.currentTimeMillis();
+        try(var scope = new StructuredTaskScope<Integer>()) {
+            var startTime = System.currentTimeMillis();
 
-            Future<Integer> getFirstResult = scope.fork(() -> {
+            var getFirstResult = scope.fork(() -> {
                Thread.sleep(1000);
                return 400;
             });
 
-            Future<Integer> getSecondResult = scope.fork(() -> {
+            var getSecondResult = scope.fork(() -> {
                Thread.sleep(2000);
                return 20;
             });
 
             scope.join();
 
-            var end = System.currentTimeMillis();
+            var totalTime = System.currentTimeMillis() - startTime;
 
-            System.out.println("Total in ms: " + (end - start));
+            System.out.println("Total in ms: " + totalTime);
 
             return getFirstResult.resultNow() + getSecondResult.resultNow();
         } catch (InterruptedException e) {
@@ -76,7 +75,7 @@ public class Loom {
                 } catch (InterruptedException ex) {
                     ex.printStackTrace();
                 }
-                return "123456789";
+                return "(51)12345-6789";
             });
             return phone.get();
         } catch (Exception e) {
@@ -84,7 +83,7 @@ public class Loom {
         }
     }
 
-    // Each call takes 3000m, but since they are executed in parallel, it only takes 3000ms to complete
+    // Each call takes 3000ms, but since they are executed in parallel, it only takes 3000ms to complete
     public static String getDetails() {
         try(var executorService = Executors.newVirtualThreadPerTaskExecutor()) {
             var user = executorService.submit(Loom::getUser);

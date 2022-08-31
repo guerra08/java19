@@ -1,17 +1,17 @@
 public class Application {
 
     public static void main(String[] args) {
-        //userDetailsExample();
-        var result = Loom.structuredTaskScope();
-        System.out.println(result);
+        userDetailsExample();
+//        var result = Loom.structuredTaskScope();
+//        System.out.println(result);
     }
 
     private static void userDetailsExample() {
-        var start = System.currentTimeMillis();
+        var startTime = System.currentTimeMillis();
         var details = Loom.getDetails();
-        var end = System.currentTimeMillis();
+        var totalTime = System.currentTimeMillis() - startTime;
         System.out.println(details);
-        System.out.println("Took " + (end - start) + "ms");
+        System.out.println("Took " + totalTime + "ms");
     }
 
 }
