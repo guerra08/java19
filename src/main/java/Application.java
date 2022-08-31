@@ -1,9 +1,7 @@
 public class Application {
 
     public static void main(String[] args) {
-        userDetailsExample();
-//        var result = Loom.structuredTaskScope();
-//        System.out.println(result);
+        System.out.println("This feels empty...");
     }
 
     private static void userDetailsExample() {

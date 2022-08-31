@@ -1,5 +1,7 @@
 import jdk.incubator.concurrent.StructuredTaskScope;
 
+import java.util.Random;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -92,6 +94,48 @@ public class Loom {
         } catch (Exception e) {
             throw new RuntimeException(e.getMessage());
         }
+    }
+
+    private static String authenticate() {
+        try(var es = Executors.newVirtualThreadPerTaskExecutor()) {
+            var authResult = es.submit(() -> {
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException ex) {
+                    ex.printStackTrace();
+                }
+                var chance = new Random().nextDouble();
+                if(chance > 0.5) {
+                    throw new IllegalStateException("Forbidden");
+                }
+                return "User1";
+            });
+            return authResult.get();
+        } catch (ExecutionException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static Double placeOrder(String auth) {
+        try(var es = Executors.newVirtualThreadPerTaskExecutor()) {
+            var total = es.submit(() -> {
+                try {
+                    Thread.sleep(666);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                return new Random().nextDouble() * 1000.0;
+            });
+            return total.get();
+        } catch (ExecutionException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static String authenticateAndPlaceOrder() {
+        var auth = authenticate();
+        var orderTotal = placeOrder(auth);
+        return auth + " spent " + orderTotal + " USD";
     }
 
 }
