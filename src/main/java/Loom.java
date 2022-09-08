@@ -1,9 +1,21 @@
 import jdk.incubator.concurrent.StructuredTaskScope;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public class Loom {
 
@@ -28,17 +40,17 @@ public class Loom {
     }
 
     public static Integer structuredTaskScope() {
-        try(var scope = new StructuredTaskScope<Integer>()) {
+        try (var scope = new StructuredTaskScope<Integer>()) {
             var startTime = System.currentTimeMillis();
 
             var getFirstResult = scope.fork(() -> {
-               Thread.sleep(1000);
-               return 400;
+                Thread.sleep(1000);
+                return 400;
             });
 
             var getSecondResult = scope.fork(() -> {
-               Thread.sleep(2000);
-               return 20;
+                Thread.sleep(2000);
+                return 20;
             });
 
             scope.join();
@@ -54,7 +66,7 @@ public class Loom {
     }
 
     private static String getUser() {
-        try (var executorService = Executors.newVirtualThreadPerTaskExecutor()){
+        try (var executorService = Executors.newVirtualThreadPerTaskExecutor()) {
             var user = executorService.submit(() -> {
                 try {
                     Thread.sleep(3000);
@@ -70,7 +82,7 @@ public class Loom {
     }
 
     private static String getPhone() {
-        try (var executorService = Executors.newVirtualThreadPerTaskExecutor()){
+        try (var executorService = Executors.newVirtualThreadPerTaskExecutor()) {
             var phone = executorService.submit(() -> {
                 try {
                     Thread.sleep(3000);
@@ -87,7 +99,7 @@ public class Loom {
 
     // Each call takes 3000ms, but since they are executed in parallel, it only takes 3000ms to complete
     public static String getDetails() {
-        try(var executorService = Executors.newVirtualThreadPerTaskExecutor()) {
+        try (var executorService = Executors.newVirtualThreadPerTaskExecutor()) {
             var user = executorService.submit(Loom::getUser);
             var phone = executorService.submit(Loom::getPhone);
             return user.get() + " - " + phone.get();
@@ -97,7 +109,7 @@ public class Loom {
     }
 
     private static String authenticate() {
-        try(var es = Executors.newVirtualThreadPerTaskExecutor()) {
+        try (var es = Executors.newVirtualThreadPerTaskExecutor()) {
             var authResult = es.submit(() -> {
                 try {
                     Thread.sleep(500);
@@ -105,7 +117,7 @@ public class Loom {
                     ex.printStackTrace();
                 }
                 var chance = new Random().nextDouble();
-                if(chance > 0.5) {
+                if (chance > 0.5) {
                     throw new IllegalStateException("Forbidden");
                 }
                 return "User1";
@@ -117,7 +129,7 @@ public class Loom {
     }
 
     private static Double placeOrder(String auth) {
-        try(var es = Executors.newVirtualThreadPerTaskExecutor()) {
+        try (var es = Executors.newVirtualThreadPerTaskExecutor()) {
             var total = es.submit(() -> {
                 try {
                     Thread.sleep(666);
@@ -136,6 +148,70 @@ public class Loom {
         var auth = authenticate();
         var orderTotal = placeOrder(auth);
         return auth + " spent " + orderTotal + " USD";
+    }
+
+    public static List<String> visitReddit() {
+        var requests = buildSubredditRequests();
+        var startTime = System.currentTimeMillis();
+        var contents = getSubredditsContents(requests);
+        var totalTime = System.currentTimeMillis() - startTime;
+        System.out.println("Took " + totalTime + "ms.");
+        return contents;
+    }
+
+    private static List<String> getSubredditsContents(List<HttpRequest> requests) {
+        try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {
+            var httpClient = HttpClient.newHttpClient();
+            var tasks = requests.stream()
+                .map(request ->
+                    scope.fork(() ->
+                        httpClient.send(request, HttpResponse.BodyHandlers.ofString()).body()
+                    )
+                )
+                .toList();
+            scope.join();
+            return tasks.stream()
+                .map(Future::resultNow)
+                .toList();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static List<String> getSubredditsContentsSync(List<HttpRequest> requests) {
+        var httpClient = HttpClient.newHttpClient();
+        var contents = new ArrayList<String>();
+        for(var request : requests) {
+            try {
+                var result = httpClient.send(request, HttpResponse.BodyHandlers.ofString()).body();
+                contents.add(result);
+            } catch (IOException | InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return contents;
+    }
+
+    private static List<HttpRequest> buildSubredditRequests() {
+        try (
+            var stream = Loom.class.getResourceAsStream("subreddits.txt");
+            var br = new BufferedReader(new InputStreamReader(Objects.requireNonNull(stream)));
+        ) {
+            return br
+                .lines()
+                .map(url -> {
+                    try {
+                        var uri = new URI(url);
+                        return HttpRequest.newBuilder(uri).GET().build();
+                    } catch (URISyntaxException e) {
+                        throw new RuntimeException(e.getMessage());
+                    }
+                })
+                .toList();
+        } catch (IOException e) {
+            e.printStackTrace();
+            return List.of();
+        }
     }
 
 }
