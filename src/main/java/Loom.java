@@ -150,13 +150,17 @@ public class Loom {
         return auth + " spent " + orderTotal + " USD";
     }
 
-    public static List<String> visitReddit() {
+    public static List<String> visitReddit(boolean isSync) {
         var requests = buildSubredditRequests();
         var startTime = System.currentTimeMillis();
-        var contents = getSubredditsContents(requests);
+        var contents = (isSync) ? getSubredditsContentsSync(requests) : getSubredditsContents(requests);
         var totalTime = System.currentTimeMillis() - startTime;
         System.out.println("Took " + totalTime + "ms.");
         return contents;
+    }
+
+    public static List<String> visitReddit() {
+        return visitReddit(false);
     }
 
     private static List<String> getSubredditsContents(List<HttpRequest> requests) {
