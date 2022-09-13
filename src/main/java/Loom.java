@@ -8,7 +8,6 @@ import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
@@ -150,17 +149,13 @@ public class Loom {
         return auth + " spent " + orderTotal + " USD";
     }
 
-    public static List<String> visitReddit(boolean isSync) {
+    public static List<String> visitReddit() {
         var requests = buildSubredditRequests();
         var startTime = System.currentTimeMillis();
-        var contents = (isSync) ? getSubredditsContentsSync(requests) : getSubredditsContents(requests);
+        var contents = getSubredditsContents(requests);
         var totalTime = System.currentTimeMillis() - startTime;
         System.out.println("Took " + totalTime + "ms.");
         return contents;
-    }
-
-    public static List<String> visitReddit() {
-        return visitReddit(false);
     }
 
     private static List<String> getSubredditsContents(List<HttpRequest> requests) {
@@ -168,9 +163,10 @@ public class Loom {
             var httpClient = HttpClient.newHttpClient();
             var tasks = requests.stream()
                 .map(request ->
-                    scope.fork(() ->
-                        httpClient.send(request, HttpResponse.BodyHandlers.ofString()).body()
-                    )
+                    scope.fork(() -> {
+                        System.out.println("GET " + request.uri());
+                        return httpClient.send(request, HttpResponse.BodyHandlers.ofString()).body();
+                    })
                 )
                 .toList();
             scope.join();
@@ -182,24 +178,10 @@ public class Loom {
         }
     }
 
-    private static List<String> getSubredditsContentsSync(List<HttpRequest> requests) {
-        var httpClient = HttpClient.newHttpClient();
-        var contents = new ArrayList<String>();
-        for(var request : requests) {
-            try {
-                var result = httpClient.send(request, HttpResponse.BodyHandlers.ofString()).body();
-                contents.add(result);
-            } catch (IOException | InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        }
-        return contents;
-    }
-
     private static List<HttpRequest> buildSubredditRequests() {
         try (
             var stream = Loom.class.getResourceAsStream("subreddits.txt");
-            var br = new BufferedReader(new InputStreamReader(Objects.requireNonNull(stream)));
+            var br = new BufferedReader(new InputStreamReader(Objects.requireNonNull(stream)))
         ) {
             return br
                 .lines()
