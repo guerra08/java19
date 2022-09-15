@@ -1,26 +1,11 @@
 import jdk.incubator.concurrent.StructuredTaskScope;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.util.List;
-import java.util.Objects;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 public class Loom {
-
-    public static void helloWorld() {
-        Thread.startVirtualThread(() -> System.out.println("Hello from Loom!"));
-    }
 
     public static void executorService() {
         System.out.println("Before");
@@ -64,6 +49,16 @@ public class Loom {
         }
     }
 
+    public static String getDetails() {
+        try (var executorService = Executors.newVirtualThreadPerTaskExecutor()) {
+            var user = executorService.submit(Loom::getUser);
+            var phone = executorService.submit(Loom::getPhone);
+            return user.get() + " - " + phone.get();
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage());
+        }
+    }
+
     private static String getUser() {
         try (var executorService = Executors.newVirtualThreadPerTaskExecutor()) {
             var user = executorService.submit(() -> {
@@ -96,15 +91,10 @@ public class Loom {
         }
     }
 
-    // Each call takes 3000ms, but since they are executed in parallel, it only takes 3000ms to complete
-    public static String getDetails() {
-        try (var executorService = Executors.newVirtualThreadPerTaskExecutor()) {
-            var user = executorService.submit(Loom::getUser);
-            var phone = executorService.submit(Loom::getPhone);
-            return user.get() + " - " + phone.get();
-        } catch (Exception e) {
-            throw new RuntimeException(e.getMessage());
-        }
+    public static String authenticateAndPlaceOrder() {
+        var auth = authenticate();
+        var orderTotal = placeOrder(auth);
+        return auth + " spent " + orderTotal + " USD";
     }
 
     private static String authenticate() {
@@ -140,63 +130,6 @@ public class Loom {
             return total.get();
         } catch (ExecutionException | InterruptedException e) {
             throw new RuntimeException(e);
-        }
-    }
-
-    public static String authenticateAndPlaceOrder() {
-        var auth = authenticate();
-        var orderTotal = placeOrder(auth);
-        return auth + " spent " + orderTotal + " USD";
-    }
-
-    public static List<String> visitReddit() {
-        var requests = buildSubredditRequests();
-        var startTime = System.currentTimeMillis();
-        var contents = getSubredditsContents(requests);
-        var totalTime = System.currentTimeMillis() - startTime;
-        System.out.println("Took " + totalTime + "ms.");
-        return contents;
-    }
-
-    private static List<String> getSubredditsContents(List<HttpRequest> requests) {
-        try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {
-            var httpClient = HttpClient.newHttpClient();
-            var tasks = requests.stream()
-                .map(request ->
-                    scope.fork(() -> {
-                        System.out.println("GET " + request.uri());
-                        return httpClient.send(request, HttpResponse.BodyHandlers.ofString()).body();
-                    })
-                )
-                .toList();
-            scope.join();
-            return tasks.stream()
-                .map(Future::resultNow)
-                .toList();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private static List<HttpRequest> buildSubredditRequests() {
-        try (
-            var stream = Loom.class.getResourceAsStream("subreddits.txt");
-            var br = new BufferedReader(new InputStreamReader(Objects.requireNonNull(stream)))
-        ) {
-            return br
-                .lines()
-                .map(url -> {
-                    try {
-                        var uri = new URI(url);
-                        return HttpRequest.newBuilder(uri).GET().build();
-                    } catch (URISyntaxException e) {
-                        throw new RuntimeException(e.getMessage());
-                    }
-                })
-                .toList();
-        } catch (IOException e) {
-            e.printStackTrace();
-            return List.of();
         }
     }
 
