@@ -13,13 +13,16 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.concurrent.Future;
+import java.util.logging.Logger;
 
 public class RedditFetcher {
 
     private final HttpClient httpClient;
+    private final Logger logger;
 
     public RedditFetcher(HttpClient httpClient) {
         this.httpClient = httpClient;
+        this.logger = Logger.getLogger(RedditFetcher.class.getName());
     }
 
     public List<RedditPage> visitReddit() {
@@ -29,9 +32,12 @@ public class RedditFetcher {
                 return HttpRequest.newBuilder(uri).GET().build();
             })
             .toList();
-        try(var scope = new StructuredTaskScope.ShutdownOnFailure()) {
+        try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {
             var tasks = requests.stream()
-                .map(request -> scope.fork(() -> doGet(httpClient, request)))
+                .map(request -> {
+                    logger.info("visitReddit - Fetching " + request.uri());
+                    return scope.fork(() -> doGet(httpClient, request));
+                })
                 .toList();
             scope.join();
             return tasks.stream()
