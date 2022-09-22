@@ -1,7 +1,13 @@
+import reddit_visitor.RedditFetcher;
+
+import java.net.http.HttpClient;
+
 public class Application {
 
     public static void main(String[] args) {
-        Loom.authenticateAndPlaceOrder();
+        var httpClient = HttpClient.newHttpClient();
+        var redditFetcher = new RedditFetcher(httpClient);
+        final var result = redditFetcher.visitReddit();
     }
 
 }

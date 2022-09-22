@@ -1,6 +1,8 @@
 package reddit_visitor;
 
 import jdk.incubator.concurrent.StructuredTaskScope;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reddit_visitor.page.RedditErrorPage;
 import reddit_visitor.page.RedditPage;
 import reddit_visitor.page.RedditResultPage;
@@ -12,16 +14,14 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.List;
-import java.util.logging.Logger;
 
 public class RedditFetcher {
 
     private final HttpClient httpClient;
-    private final Logger logger;
+    private static final Logger logger = LoggerFactory.getLogger(RedditFetcher.class);
 
     public RedditFetcher(HttpClient httpClient) {
         this.httpClient = httpClient;
-        this.logger = Logger.getLogger(RedditFetcher.class.getName());
     }
 
     public List<RedditPage> visitReddit() {
@@ -29,7 +29,7 @@ public class RedditFetcher {
         try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {
             var tasks = requests.stream()
                 .map(request -> {
-                    logger.info("visitReddit - Fetching %s".formatted(request.uri()));
+                    logger.info("visitReddit - Fetching {}", request.uri());
                     return scope.fork(() -> doGet(httpClient, request));
                 })
                 .toList();
@@ -38,14 +38,14 @@ public class RedditFetcher {
                 .map(redditPageFuture -> {
                     var result = redditPageFuture.resultNow();
                     result.runMatching(
-                        redditResultPage -> logger.info("visitReddit - Fetched %s".formatted(redditResultPage.url())),
-                        redditErrorPage -> logger.info("visitReddit - Error when fetching %s".formatted(redditErrorPage.url()))
+                        redditResultPage -> logger.info("visitReddit - Fetched {}", redditResultPage.url()),
+                        redditErrorPage -> logger.info("visitReddit - Error when fetching {}", redditErrorPage.url())
                     );
                     return result;
                 })
                 .toList();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        } catch (InterruptedException ex) {
+            logger.error(ex.getMessage());
             throw new RuntimeException("Error when visiting Reddit.");
         }
     }
@@ -54,9 +54,9 @@ public class RedditFetcher {
         try {
             var contents = httpClient.send(request, HttpResponse.BodyHandlers.ofString()).body();
             return new RedditResultPage(contents, request.uri().toString());
-        } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
-            return new RedditErrorPage(e.getMessage(), request.uri().toString());
+        } catch (IOException | InterruptedException ex) {
+            logger.error(ex.getMessage());
+            return new RedditErrorPage(ex.getMessage(), request.uri().toString());
         }
     }
 

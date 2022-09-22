@@ -1,4 +1,6 @@
 import jdk.incubator.concurrent.StructuredTaskScope;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
@@ -7,24 +9,26 @@ import java.util.concurrent.Executors;
 
 public class Loom {
 
+    private static final Logger logger = LoggerFactory.getLogger(Loom.class);
+
     public static void executorService() {
-        System.out.println("Before ExecutorService");
+        logger.info("Before ExecutorService");
         try (ExecutorService es = Executors.newVirtualThreadPerTaskExecutor()) {
             es.submit(() -> {
                 try {
                     Thread.sleep(1000);
-                    System.out.println("Finishing first task");
+                    logger.info("Finishing first task");
                 } catch (InterruptedException e) {
                     throw new RuntimeException("Error when sleeping virtual thread");
                 }
             });
-            es.submit(() -> System.out.println("Finishing second task"));
+            es.submit(() -> logger.info("Finishing second task"));
         }
-        System.out.println("After ExecutorService");
+        logger.info("After ExecutorService");
     }
 
     public static Integer structuredTaskScope() {
-        System.out.println("Starting StructuredTaskScope");
+        logger.info("Starting StructuredTaskScope");
         try (var scope = new StructuredTaskScope<Integer>()) {
             var startTime = System.currentTimeMillis();
 
@@ -42,7 +46,7 @@ public class Loom {
 
             var totalTime = System.currentTimeMillis() - startTime;
 
-            System.out.println("Took %sms".formatted(totalTime));
+            logger.info("Took {} ms", totalTime);
 
             return getFirstResult.resultNow() + getSecondResult.resultNow();
         } catch (InterruptedException e) {
@@ -66,7 +70,7 @@ public class Loom {
                 try {
                     Thread.sleep(3000);
                 } catch (InterruptedException ex) {
-                    ex.printStackTrace();
+                    logger.error(ex.getMessage());
                 }
                 return "Bruno";
             });
@@ -82,7 +86,7 @@ public class Loom {
                 try {
                     Thread.sleep(3000);
                 } catch (InterruptedException ex) {
-                    ex.printStackTrace();
+                    logger.error(ex.getMessage());
                 }
                 return "(51)12345-6789";
             });
@@ -104,7 +108,7 @@ public class Loom {
                 try {
                     Thread.sleep(500);
                 } catch (InterruptedException ex) {
-                    ex.printStackTrace();
+                    logger.error(ex.getMessage());
                 }
                 var chance = new Random().nextDouble();
                 if (chance > 0.5) {
@@ -123,14 +127,14 @@ public class Loom {
             var total = es.submit(() -> {
                 try {
                     Thread.sleep(666);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+                } catch (InterruptedException ex) {
+                    logger.error(ex.getMessage());
                 }
                 return new Random().nextDouble() * 1000.0;
             });
             return total.get();
-        } catch (ExecutionException | InterruptedException e) {
-            throw new RuntimeException(e);
+        } catch (ExecutionException | InterruptedException ex) {
+            throw new RuntimeException(ex);
         }
     }
 

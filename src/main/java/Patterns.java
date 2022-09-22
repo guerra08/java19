@@ -1,24 +1,26 @@
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class Patterns {
 
+    private static final Logger logger = LoggerFactory.getLogger(Patterns.class);
+
     sealed interface User {}
-    record Person (String name, String email, String currentClass) implements User {}
-    record Teacher (String name, String discipline) implements User {}
+    record Student (String name, String email, String currentClass) implements User {}
+    record Professor (String name, String discipline) implements User {}
 
     public static void patternDemo() {
-        var teacherUser = new Teacher("Juca", "Math");
-        var personUser = new Person("Bruno", "email@gmail.com", "Class 1");
+        var teacherUser = new Professor("Juca", "Math");
+        var personUser = new Student("Bruno", "email@gmail.com", "Class 1");
 
-        var teacherInfo = getInformation(teacherUser);
-        var personInfo = getInformation(personUser);
-
-        System.out.println(teacherInfo);
-        System.out.println(personInfo);
+        logger.info(greet(teacherUser));
+        logger.info(greet(personUser));
     }
 
-    private static String getInformation(User user) {
+    private static String greet(User user) {
         return switch (user) {
-            case Person(String name, String email, String currentClass) -> "Person is enrolled in " + currentClass + " class";
-            case Teacher(String name, String discipline) -> "Teacher is responsible for " + discipline;
+            case Professor p -> "Welcome, professor %s".formatted(p.name);
+            case Student s -> "Welcome, student %s".formatted(s.name);
         };
     }
 
