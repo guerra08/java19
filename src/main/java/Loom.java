@@ -8,22 +8,23 @@ import java.util.concurrent.Executors;
 public class Loom {
 
     public static void executorService() {
-        System.out.println("Before");
+        System.out.println("Before ExecutorService");
         try (ExecutorService es = Executors.newVirtualThreadPerTaskExecutor()) {
             es.submit(() -> {
                 try {
                     Thread.sleep(1000);
+                    System.out.println("Finishing first task");
                 } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    throw new RuntimeException("Error when sleeping virtual thread");
                 }
-                System.out.println("First task");
             });
-            es.submit(() -> System.out.println("Second task"));
+            es.submit(() -> System.out.println("Finishing second task"));
         }
-        System.out.println("After");
+        System.out.println("After ExecutorService");
     }
 
     public static Integer structuredTaskScope() {
+        System.out.println("Starting StructuredTaskScope");
         try (var scope = new StructuredTaskScope<Integer>()) {
             var startTime = System.currentTimeMillis();
 
@@ -41,7 +42,7 @@ public class Loom {
 
             var totalTime = System.currentTimeMillis() - startTime;
 
-            System.out.println("Total in ms: " + totalTime);
+            System.out.println("Took %sms".formatted(totalTime));
 
             return getFirstResult.resultNow() + getSecondResult.resultNow();
         } catch (InterruptedException e) {
