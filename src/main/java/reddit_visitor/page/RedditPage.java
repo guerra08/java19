@@ -10,7 +10,6 @@ public sealed interface RedditPage permits RedditErrorPage, RedditResultPage {
         Function<RedditResultPage, T> resultPageMapper,
         Function<RedditErrorPage, T> errorPageMapper
     );
-
     void runMatching(
         Consumer<RedditResultPage> resultPageConsumer,
         Consumer<RedditErrorPage> redditErrorPageConsumer

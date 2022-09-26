@@ -33,7 +33,9 @@ public class RedditFetcher {
                     return scope.fork(() -> doGet(httpClient, request));
                 })
                 .toList();
+
             scope.join();
+
             return tasks.stream()
                 .map(redditPageFuture -> {
                     var result = redditPageFuture.resultNow();
