@@ -14,6 +14,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 public class RedditFetcher {
 
@@ -28,33 +30,23 @@ public class RedditFetcher {
         var requests = mapRequests();
         try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {
             var tasks = requests.stream()
-                .map(request -> {
-                    logger.info("visitReddit - Fetching {}", request.uri());
-                    return scope.fork(() -> doGet(httpClient, request));
-                })
-                .toList();
-
+                    .map(request -> scope.fork(() -> getRedditPage(httpClient, request)))
+                    .toList();
             scope.join();
-
             return tasks.stream()
-                .map(redditPageFuture -> {
-                    var result = redditPageFuture.resultNow();
-                    result.runMatching(
-                        redditResultPage -> logger.info("visitReddit - Fetched {}", redditResultPage.url()),
-                        redditErrorPage -> logger.info("visitReddit - Error when fetching {}", redditErrorPage.url())
-                    );
-                    return result;
-                })
-                .toList();
+                    .map(Future::resultNow)
+                    .toList();
         } catch (InterruptedException ex) {
             logger.error(ex.getMessage());
-            throw new RuntimeException("Error when visiting Reddit.");
+            throw new RuntimeException(ex);
         }
     }
 
-    private RedditPage doGet(HttpClient httpClient, HttpRequest request) {
+    private RedditPage getRedditPage(HttpClient httpClient, HttpRequest request) {
         try {
+            logger.info("Fetching {} on Thread {}", request.uri(), Thread.currentThread());
             var contents = httpClient.send(request, HttpResponse.BodyHandlers.ofString()).body();
+            logger.info("Fetched {} on Thread {}", request.uri(), Thread.currentThread());
             return new RedditResultPage(contents, request.uri().toString());
         } catch (IOException | InterruptedException ex) {
             logger.error(ex.getMessage());
@@ -64,11 +56,11 @@ public class RedditFetcher {
 
     private List<HttpRequest> mapRequests() {
         return Reader.resourceFileAsList("subreddits.txt").stream()
-            .map(url -> {
-                var uri = URI.create(url);
-                return HttpRequest.newBuilder(uri).GET().build();
-            })
-            .toList();
+                .map(url -> {
+                    var uri = URI.create(url);
+                    return HttpRequest.newBuilder(uri).GET().build();
+                })
+                .toList();
     }
 
 }
